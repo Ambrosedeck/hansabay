@@ -23,6 +23,7 @@ db.exec(`
     description   TEXT NOT NULL DEFAULT '',
     price         REAL NOT NULL DEFAULT 0,
     currency      TEXT NOT NULL DEFAULT 'USD',
+    icon          TEXT NOT NULL DEFAULT '📦',
     password_hash TEXT NOT NULL,
     position      INTEGER NOT NULL DEFAULT 0
   );
@@ -52,6 +53,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id, position);
 `);
 
+// ---- Migrations ----
+const packCols = db.prepare('PRAGMA table_info(packs)').all().map((c) => c.name);
+if (!packCols.includes('icon')) {
+  db.exec("ALTER TABLE packs ADD COLUMN icon TEXT NOT NULL DEFAULT '📦';");
+}
+
 // ---- Settings helpers ----
 function getSetting(key) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
@@ -72,14 +79,17 @@ function seed() {
   }
 
   const count = db.prepare('SELECT COUNT(*) AS n FROM packs').get().n;
-  if (count === 0) {
+  if (count === 0 && !getSetting('seeded_initial_packs')) {
     const insert = db.prepare(
-      'INSERT INTO packs (slug, name, description, price, password_hash, position) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO packs (slug, name, description, price, currency, icon, password_hash, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    insert.run('starter', 'Starter', 'Everything you need to get going.', 9.99, hashPassword(config.seed.starterPassword), 0);
-    insert.run('booster', 'Booster', 'More content, more categories, more value.', 19.99, hashPassword(config.seed.boosterPassword), 1);
-    insert.run('premium', 'Premium', 'The full library. All packs, all content.', 39.99, hashPassword(config.seed.premiumPassword), 2);
+    insert.run('starter', 'Starter', 'Everything you need to get going.', 9.99, 'USD', '📦', hashPassword(config.seed.starterPassword), 0);
+    insert.run('booster', 'Booster', 'More content, more categories, more value.', 19.99, 'USD', '🚀', hashPassword(config.seed.boosterPassword), 1);
+    insert.run('premium', 'Premium', 'The full library. All packs, all content.', 39.99, 'USD', '💎', hashPassword(config.seed.premiumPassword), 2);
+    setSetting('seeded_initial_packs', '1');
     console.log('[seed] Created Starter, Booster and Premium packs.');
+  } else if (count > 0 && !getSetting('seeded_initial_packs')) {
+    setSetting('seeded_initial_packs', '1');
   }
 }
 

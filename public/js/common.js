@@ -30,9 +30,9 @@
   function formatPrice(price, currency) {
     const n = Number(price) || 0;
     try {
-      return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(n);
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(n);
     } catch {
-      return `${currency || '$'} ${n.toFixed(2)}`;
+      return `$${n.toFixed(2)}`;
     }
   }
 

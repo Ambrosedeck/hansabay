@@ -46,11 +46,12 @@
   }
 
   function packCard(p) {
+    const icon = p.icon ? `${p.icon} ` : '';
     return `
       <article class="pack-card">
         <div class="pack-head">
           <div>
-            <h3>${esc(p.name)}</h3>
+            <h3>${esc(icon)}${esc(p.name)}</h3>
             <span class="badge ${p.unlocked ? 'unlocked' : 'locked'}">${p.unlocked ? '● Unlocked' : '🔒 Locked'}</span>
           </div>
           <div class="price">${esc(formatPrice(p.price, p.currency))}</div>
@@ -122,7 +123,7 @@
       <div class="breadcrumb"><a href="#/">Packs</a><span class="sep">/</span><span>${esc(pack.name)}</span></div>
       <div class="pack-header">
         <div>
-          <h2>${esc(pack.name)}</h2>
+          <h2>${esc(pack.icon ? pack.icon + ' ' : '')}${esc(pack.name)}</h2>
           <p class="muted" style="margin:0.25rem 0 0">${esc(pack.description)}</p>
         </div>
         <button class="btn btn-sm" id="lock-btn">Lock pack</button>
@@ -199,7 +200,7 @@
     const embed = item.source === 'external' ? embedUrlFor(item.url) : null;
     const media = embed
       ? `<iframe src="${esc(embed)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-      : `<video controls autoplay playsinline preload="metadata" controlsList="nodownload" src="${esc(item.url)}"></video>`;
+      : `<video controls autoplay playsinline preload="metadata" controlsList="nodownload" oncontextmenu="return false;" ondragstart="return false;" src="${esc(item.url)}"></video>`;
     el.innerHTML = `
       <div class="player-wrap">${media}</div>
       <div class="now-playing">
@@ -207,7 +208,31 @@
         <a class="btn btn-sm" href="${location.hash.split('?')[0]}">Close player</a>
       </div>`;
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const videoEl = el.querySelector('video');
+    if (videoEl) {
+      // Prevent context menu (desktop right-click and mobile long-press)
+      videoEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      videoEl.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        return false;
+      });
+    }
   }
+
+  // Prevent right-click and mobile long-press context menu specifically on video elements,
+  // without disabling right-click or normal interactions elsewhere on the website.
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target && (e.target.nodeName === 'VIDEO' || (e.target.closest && e.target.closest('video, .player-wrap')))) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  }, true);
 
   route();
 })();

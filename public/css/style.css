@@ -77,6 +77,22 @@ main { padding-bottom: 4rem; }
 .btn-primary { background: var(--accent); border-color: var(--accent); }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn-ghost { background: transparent; }
+.btn-telegram {
+  background: rgba(42, 171, 238, 0.12);
+  border-color: rgba(42, 171, 238, 0.35);
+  color: #5bc4f5;
+  text-decoration: none;
+}
+.btn-telegram:hover {
+  background: rgba(42, 171, 238, 0.22);
+  border-color: #2aabee;
+  color: #fff;
+}
+.btn-telegram svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 .btn-danger { color: var(--danger); }
 .btn-danger:hover { background: rgba(255, 77, 79, 0.12); border-color: rgba(255, 77, 79, 0.5); }
 .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.85rem; border-radius: 8px; }
@@ -170,6 +186,14 @@ textarea.input { resize: vertical; min-height: 80px; }
 
 .player-wrap { background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 1rem; }
 .player-wrap video, .player-wrap iframe { width: 100%; aspect-ratio: 16 / 9; height: auto; background: #000; border: 0; }
+.player-wrap video {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.player-wrap video::-internal-media-controls-download-button {
+  display: none !important;
+}
 .now-playing { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
 .now-playing h3 { margin: 0; }
 

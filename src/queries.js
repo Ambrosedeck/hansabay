@@ -5,7 +5,7 @@ const { db } = require('./db');
 
 function listPacks() {
   return db
-    .prepare('SELECT id, slug, name, description, price, currency, position FROM packs ORDER BY position, id')
+    .prepare('SELECT id, slug, name, description, price, currency, icon, position FROM packs ORDER BY position, id')
     .all();
 }
 
@@ -80,6 +80,27 @@ function reorder(table, column, parentId, orderedIds) {
   }
 }
 
+function nextPackPosition() {
+  const row = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM packs').get();
+  return row ? row.next : 0;
+}
+
+function generateUniqueSlug(name, excludeId = null) {
+  const base = String(name || 'pack')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'pack';
+  let slug = base;
+  let counter = 2;
+  while (true) {
+    const existing = excludeId
+      ? db.prepare('SELECT id FROM packs WHERE slug = ? AND id != ?').get(slug, Number(excludeId))
+      : db.prepare('SELECT id FROM packs WHERE slug = ?').get(slug);
+    if (!existing) return slug;
+    slug = `${base}-${counter++}`;
+  }
+}
+
 module.exports = {
   listPacks,
   getPack,
@@ -90,5 +111,7 @@ module.exports = {
   listItems,
   getPackTree,
   nextPosition,
+  nextPackPosition,
+  generateUniqueSlug,
   reorder,
 };

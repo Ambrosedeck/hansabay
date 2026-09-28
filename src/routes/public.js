@@ -61,6 +61,7 @@ router.get('/packs/:id', (req, res) => {
     description: tree.description,
     price: tree.price,
     currency: tree.currency,
+    icon: tree.icon || '📦',
     categories: tree.categories.map((c) => ({
       id: c.id,
       name: c.name,

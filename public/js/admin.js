@@ -70,7 +70,7 @@
         <aside class="sidebar">
           <div class="side-link ${state.view === 'dashboard' ? 'active' : ''}" data-view="dashboard">📊 Dashboard</div>
           <div class="side-label">Packs</div>
-          ${state.packs.map((p) => `<div class="side-link ${state.view === `pack:${p.id}` ? 'active' : ''}" data-view="pack:${p.id}">📦 ${esc(p.name)}</div>`).join('')}
+          ${state.packs.map((p) => `<div class="side-link ${state.view === `pack:${p.id}` ? 'active' : ''}" data-view="pack:${p.id}">${esc(p.icon || '📦')} ${esc(p.name)}</div>`).join('')}
           <div class="side-label">System</div>
           <div class="side-link ${state.view === 'settings' ? 'active' : ''}" data-view="settings">⚙️ Settings</div>
         </aside>
@@ -95,26 +95,46 @@
     const cats = state.packs.reduce((n, p) => n + p.categories.length, 0);
     const items = state.packs.flatMap((p) => p.categories.flatMap((c) => c.items));
     const videos = items.filter((i) => i.type === 'video').length;
+    const links = items.length - videos;
     el.innerHTML = `
       <div class="stats">
-        <div class="stat"><div class="num">${state.packs.length}</div><div class="lbl">Packs</div></div>
-        <div class="stat"><div class="num">${cats}</div><div class="lbl">Categories</div></div>
-        <div class="stat"><div class="num">${videos}</div><div class="lbl">Videos</div></div>
-        <div class="stat"><div class="num">${items.length - videos}</div><div class="lbl">Links</div></div>
+        <div class="stat"><div class="num">${state.packs.length}</div><div class="lbl">${state.packs.length === 1 ? 'Pack' : 'Packs'}</div></div>
+        <div class="stat"><div class="num">${cats}</div><div class="lbl">${cats === 1 ? 'Category' : 'Categories'}</div></div>
+        <div class="stat"><div class="num">${videos}</div><div class="lbl">${videos === 1 ? 'Video' : 'Videos'}</div></div>
+        <div class="stat"><div class="num">${links}</div><div class="lbl">${links === 1 ? 'Link' : 'Links'}</div></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Packs</h3><span class="muted small">Storage driver: <strong>${esc(state.storageDriver)}</strong></span></div>
-        <div class="items">
-          ${state.packs.map((p) => `
-            <div class="item">
-              <div class="thumb">📦</div>
-              <div class="info">
-                <div class="title">${esc(p.name)} <span class="muted small">· ${esc(formatPrice(p.price, p.currency))}</span></div>
-                <div class="sub">${p.categories.length} categories · ${p.categories.reduce((n, c) => n + c.items.length, 0)} items</div>
-              </div>
-              <div class="actions"><button class="btn btn-sm" data-goto="pack:${p.id}">Manage</button></div>
-            </div>`).join('')}
+        <div class="card-head">
+          <h3>Packs</h3>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <span class="muted small">Storage driver: <strong>${esc(state.storageDriver)}</strong></span>
+            <button class="btn btn-primary btn-sm" id="add-pack-btn">+ Add Pack</button>
+          </div>
         </div>
+        ${state.packs.length ? `
+          <div class="items">
+            ${state.packs.map((p) => {
+              const pCats = p.categories ? p.categories.length : 0;
+              const pItems = p.categories ? p.categories.reduce((n, c) => n + c.items.length, 0) : 0;
+              return `
+                <div class="item">
+                  <div class="thumb">${esc(p.icon || '📦')}</div>
+                  <div class="info">
+                    <div class="title">${esc(p.name)} <span class="muted small">· ${esc(formatPrice(p.price, p.currency))}</span></div>
+                    <div class="sub">${pCats} ${pCats === 1 ? 'category' : 'categories'} · ${pItems} ${pItems === 1 ? 'item' : 'items'}</div>
+                  </div>
+                  <div class="actions">
+                    <button class="btn btn-sm" data-edit-pack="${p.id}">Edit</button>
+                    <button class="btn btn-sm" data-goto="pack:${p.id}">Manage</button>
+                    <button class="btn btn-sm btn-danger btn-icon" data-delete-pack="${p.id}" title="Delete pack">🗑</button>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>` : `
+          <div class="empty">
+            <p style="margin:0 0 1rem">No packs yet</p>
+            <button class="btn btn-primary" id="empty-add-pack-btn">+ Add Pack</button>
+          </div>`}
       </div>
       <div class="card">
         <div class="card-head"><h3>How it works</h3></div>
@@ -124,25 +144,134 @@
           Everything you change here is live on the public site immediately.
         </p>
       </div>`;
-    el.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.goto; render(); }));
+
+    const addBtn = el.querySelector('#add-pack-btn');
+    if (addBtn) addBtn.addEventListener('click', () => packModal());
+    const emptyAddBtn = el.querySelector('#empty-add-pack-btn');
+    if (emptyAddBtn) emptyAddBtn.addEventListener('click', () => packModal());
+
+    el.querySelectorAll('[data-edit-pack]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const pack = state.packs.find((p) => p.id === Number(b.dataset.editPack));
+        if (pack) packModal(pack);
+      })
+    );
+
+    el.querySelectorAll('[data-delete-pack]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const pack = state.packs.find((p) => p.id === Number(b.dataset.deletePack));
+        if (pack) deletePack(pack);
+      })
+    );
+
+    el.querySelectorAll('[data-goto]').forEach((b) =>
+      b.addEventListener('click', () => {
+        state.view = b.dataset.goto;
+        render();
+      })
+    );
+  }
+
+  // ---------------- Pack CRUD ----------------
+  function packModal(pack = null) {
+    const isEdit = Boolean(pack);
+    const { el, close } = openModal(`
+      <h3>${isEdit ? 'Edit pack' : 'New pack'}</h3>
+      <p class="modal-sub">${isEdit ? `Update details for ${esc(pack.name)}.` : 'Add a new dynamic content pack.'}</p>
+      <form id="modal-pack-form">
+        <div class="field">
+          <label>Pack Name</label>
+          <input class="input" name="name" value="${esc(isEdit ? pack.name : '')}" required maxlength="80" placeholder="e.g. Enterprise" autofocus />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Price ($ USD)</label>
+            <input class="input" name="price" type="number" step="0.01" min="0" value="${esc(isEdit ? pack.price : '')}" required placeholder="e.g. 59.99" />
+          </div>
+          <div class="field">
+            <label>Pack icon (optional)</label>
+            <input class="input" name="icon" value="${esc(isEdit && pack.icon ? pack.icon : '')}" placeholder="📦" maxlength="10" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <textarea class="input" name="description" placeholder="Short description of this pack...">${esc(isEdit ? pack.description : '')}</textarea>
+        </div>
+        <div class="field">
+          <label>${isEdit ? 'New pack password / access code <span class="muted">(leave blank to keep current)</span>' : 'Password / access code'}</label>
+          <input class="input" name="password" type="text" autocomplete="off" ${isEdit ? '' : 'required'} minlength="3" placeholder="${isEdit ? '••••••' : 'Password for viewers to unlock'}" />
+        </div>
+        <div class="error" id="modal-pack-err"></div>
+        <div class="form-actions">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">${isEdit ? 'Save pack' : 'Save'}</button>
+        </div>
+      </form>`);
+
+    el.querySelector('#modal-pack-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = el.querySelector('#modal-pack-err');
+      errEl.textContent = '';
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd.entries());
+      if (isEdit && !body.password) delete body.password;
+      try {
+        if (isEdit) {
+          await api(`/api/admin/packs/${pack.id}`, { method: 'PUT', body });
+          toast('Pack saved', 'success');
+        } else {
+          await api('/api/admin/packs', { method: 'POST', body });
+          toast('Pack created', 'success');
+        }
+        close();
+        await reload();
+      } catch (err) {
+        errEl.textContent = err.message;
+      }
+    });
+  }
+
+  async function deletePack(pack) {
+    const pCats = pack.categories ? pack.categories.length : 0;
+    const pItems = pack.categories ? pack.categories.reduce((n, c) => n + c.items.length, 0) : 0;
+    const msg = `Are you sure you want to delete "${pack.name}"? Deleting this pack will also permanently remove its ${pCats} category${pCats === 1 ? '' : 'ies'} and ${pItems} item${pItems === 1 ? '' : 's'} (including any uploaded media files).`;
+    const ok = await confirmDialog(msg, { okLabel: 'Delete pack', danger: true });
+    if (!ok) return;
+    try {
+      await api(`/api/admin/packs/${pack.id}`, { method: 'DELETE' });
+      toast(`Pack "${pack.name}" deleted`, 'success');
+      if (state.view === `pack:${pack.id}`) state.view = 'dashboard';
+      await reload();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   // ---------------- Pack view ----------------
   function renderPack(el, pack) {
     el.innerHTML = `
       <div class="card">
-        <div class="card-head"><h3>Pack details</h3><span class="badge">${esc(pack.slug)}</span></div>
+        <div class="card-head">
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <h3>Pack details</h3>
+            <span class="badge">${esc(pack.slug)}</span>
+          </div>
+          <button class="btn btn-sm btn-danger" type="button" id="pack-delete-btn">Delete pack</button>
+        </div>
         <form id="pack-form">
           <div class="row">
-            <div class="field"><label>Name</label><input class="input" name="name" value="${esc(pack.name)}" required /></div>
-            <div class="field"><label>Price</label><input class="input" name="price" type="number" step="0.01" min="0" value="${esc(pack.price)}" required /></div>
+            <div class="field"><label>Name</label><input class="input" name="name" value="${esc(pack.name)}" required maxlength="80" /></div>
+            <div class="field"><label>Price ($ USD)</label><input class="input" name="price" type="number" step="0.01" min="0" value="${esc(pack.price)}" required /></div>
             <div class="field"><label>Currency</label><input class="input" name="currency" value="${esc(pack.currency)}" maxlength="8" /></div>
           </div>
-          <div class="field"><label>Description</label><textarea class="input" name="description">${esc(pack.description)}</textarea></div>
-          <div class="field">
-            <label>New pack password <span class="muted">(leave blank to keep the current one)</span></label>
-            <input class="input" name="password" type="text" autocomplete="off" placeholder="••••••" />
+          <div class="row">
+            <div class="field"><label>Pack Icon</label><input class="input" name="icon" value="${esc(pack.icon || '📦')}" placeholder="📦" maxlength="10" /></div>
+            <div class="field" style="grid-column: span 2">
+              <label>New pack password <span class="muted">(leave blank to keep the current one)</span></label>
+              <input class="input" name="password" type="text" autocomplete="off" placeholder="••••••" />
+            </div>
           </div>
+          <div class="field"><label>Description</label><textarea class="input" name="description">${esc(pack.description)}</textarea></div>
           <div class="form-actions"><button class="btn btn-primary" type="submit">Save pack</button></div>
         </form>
       </div>
@@ -156,6 +285,8 @@
           ${pack.categories.length ? pack.categories.map((c, idx) => categoryBlock(pack, c, idx)).join('') : '<div class="empty">No categories yet. Create one to start adding videos and links.</div>'}
         </div>
       </div>`;
+
+    el.querySelector('#pack-delete-btn').addEventListener('click', () => deletePack(pack));
 
     el.querySelector('#pack-form').addEventListener('submit', async (e) => {
       e.preventDefault();

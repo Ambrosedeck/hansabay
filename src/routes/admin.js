@@ -68,6 +68,41 @@ router.get('/overview', (req, res) => {
 });
 
 // ---------- Packs ----------
+router.post('/packs', (req, res) => {
+  const body = req.body || {};
+  const name = text(body.name, 80);
+  if (!name) return res.status(400).json({ error: 'Pack name is required' });
+
+  if (body.price === undefined || body.price === '') {
+    return res.status(400).json({ error: 'Price is required' });
+  }
+  const price = Number(body.price);
+  if (!Number.isFinite(price) || price < 0) {
+    return res.status(400).json({ error: 'Price must be a non-negative number' });
+  }
+
+  const description = text(body.description, 1000);
+  const currency = text(body.currency, 8).toUpperCase() || 'USD';
+  const icon = text(body.icon, 20) || '📦';
+
+  const password = String(body.password || '');
+  if (!password || password.length < 3) {
+    return res.status(400).json({ error: 'Pack password must be at least 3 characters' });
+  }
+  const passwordHash = hashPassword(password);
+
+  const slug = q.generateUniqueSlug(name);
+  const position = q.nextPackPosition();
+
+  const info = db
+    .prepare(
+      'INSERT INTO packs (slug, name, description, price, currency, icon, password_hash, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    )
+    .run(slug, name, description, price, currency, icon, passwordHash, position);
+
+  res.status(201).json({ pack: q.getPackTree(info.lastInsertRowid) });
+});
+
 router.put('/packs/:id', (req, res) => {
   const pack = q.getPack(req.params.id);
   if (!pack) return res.status(404).json({ error: 'Pack not found' });
@@ -77,11 +112,12 @@ router.put('/packs/:id', (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
   const description = body.description !== undefined ? text(body.description, 1000) : pack.description;
   let price = pack.price;
-  if (body.price !== undefined) {
+  if (body.price !== undefined && body.price !== '') {
     price = Number(body.price);
     if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'Price must be a non-negative number' });
   }
   const currency = body.currency !== undefined ? text(body.currency, 8).toUpperCase() || pack.currency : pack.currency;
+  const icon = body.icon !== undefined ? text(body.icon, 20) || '📦' : (pack.icon || '📦');
 
   let passwordHash = pack.password_hash;
   if (body.password) {
@@ -90,10 +126,42 @@ router.put('/packs/:id', (req, res) => {
   }
 
   db.prepare(
-    'UPDATE packs SET name = ?, description = ?, price = ?, currency = ?, password_hash = ? WHERE id = ?'
-  ).run(name, description, price, currency, passwordHash, pack.id);
+    'UPDATE packs SET name = ?, description = ?, price = ?, currency = ?, icon = ?, password_hash = ? WHERE id = ?'
+  ).run(name, description, price, currency, icon, passwordHash, pack.id);
 
   res.json({ pack: q.getPackTree(pack.id) });
+});
+
+router.delete('/packs/:id', async (req, res, next) => {
+  try {
+    const pack = q.getPack(req.params.id);
+    if (!pack) return res.status(404).json({ error: 'Pack not found' });
+
+    // Gather items from all categories in this pack for storage cleanup
+    const categories = q.listCategories(pack.id);
+    const items = [];
+    for (const cat of categories) {
+      items.push(...q.listItems(cat.id));
+    }
+
+    // Delete the pack; categories and items cascade delete via ON DELETE CASCADE
+    db.prepare('DELETE FROM packs WHERE id = ?').run(pack.id);
+
+    // Remove uploaded files after DB row is deleted
+    for (const item of items) {
+      if (item.storage_key) {
+        try {
+          await storage.getDriver(item.storage_driver || 'local').delete(item.storage_key);
+        } catch (e) {
+          console.error('Failed to delete storage file:', e);
+        }
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- Categories ----------

@@ -59,6 +59,8 @@ module.exports = {
     const contentType = mimeType || 'video/mp4';
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, no-store');
 
     const range = req.headers.range;
