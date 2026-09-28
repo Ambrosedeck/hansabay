@@ -1,4 +1,4 @@
-# PackStream
+# HansaBay
 
 A simple, password-protected streaming site with three dynamic content packs
 (**Starter**, **Booster**, **Premium**) and an admin panel.

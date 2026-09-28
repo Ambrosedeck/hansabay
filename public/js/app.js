@@ -24,7 +24,7 @@
   async function renderHome() {
     app.innerHTML = `
       <section class="hero">
-        <h1>Pick your pack. Unlock the content.</h1>
+        <h1>Welcome to HansaBay. Pick your pack.</h1>
         <p>Each pack is protected with its own password. Enter it once and browse every category, video and resource inside.</p>
       </section>
       <div class="packs" id="packs"><div class="empty">Loading packs…</div></div>`;

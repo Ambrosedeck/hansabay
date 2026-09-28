@@ -39,7 +39,7 @@
   function renderLogin() {
     root.innerHTML = `
       <div class="card login-box">
-        <h3 style="margin-top:0">Admin login</h3>
+        <h3 style="margin-top:0">HansaBay admin</h3>
         <p class="muted small">Enter the admin password to manage packs, categories and content.</p>
         <form id="login-form">
           <div class="field">

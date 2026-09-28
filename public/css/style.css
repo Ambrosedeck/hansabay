@@ -49,7 +49,7 @@ img, video { max-width: 100%; display: block; }
 .brand .logo {
   width: 30px; height: 30px; border-radius: 8px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: grid; place-items: center; font-size: 0.9rem;
+  display: grid; place-items: center; font-size: 1rem; font-weight: 900; color: #fff;
 }
 .nav { display: flex; gap: 0.5rem; align-items: center; }
 

@@ -1,5 +1,5 @@
 {
-  "name": "packstream",
+  "name": "hansabay",
   "version": "1.0.0",
   "description": "Simple password-protected streaming site with Starter / Booster / Premium packs and an admin panel.",
   "main": "server.js",

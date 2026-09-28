@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(
   cookieSession({
-    name: 'packstream.sid',
+    name: 'hansabay.sid',
     keys: [config.sessionSecret],
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     httpOnly: true,
@@ -58,7 +58,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(config.port, () => {
-  console.log(`PackStream running at http://localhost:${config.port}`);
+  console.log(`HansaBay running at http://localhost:${config.port}`);
   console.log(`Admin panel:        http://localhost:${config.port}/admin`);
   console.log(`Storage driver:     ${config.storage.driver}`);
   if (config.sessionSecret === 'dev-insecure-secret-change-me') {
