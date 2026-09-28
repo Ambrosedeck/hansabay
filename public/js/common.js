@@ -9,10 +9,37 @@
       .replace(/'/g, '&#39;');
   }
 
+  const TOKEN_KEY = 'hansabay_pack_token';
+
+  function getUnlockToken() {
+    try {
+      return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function setUnlockToken(token) {
+    try {
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        sessionStorage.setItem(TOKEN_KEY, token);
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+      }
+    } catch { /* ignore storage errors */ }
+  }
+
   async function api(url, options = {}) {
     const opts = { credentials: 'same-origin', ...options };
+    const token = getUnlockToken();
+    opts.headers = {
+      ...(token ? { 'X-Pack-Token': token } : {}),
+      ...(opts.headers || {}),
+    };
     if (opts.body && !(opts.body instanceof FormData) && typeof opts.body !== 'string') {
-      opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(opts.body);
     }
     const res = await fetch(url, opts);
@@ -23,6 +50,9 @@
       err.status = res.status;
       err.data = data;
       throw err;
+    }
+    if (data && data.token !== undefined) {
+      setUnlockToken(data.token);
     }
     return data;
   }
@@ -110,5 +140,5 @@
     return null;
   }
 
-  window.PS = { escapeHtml, api, formatPrice, toast, openModal, confirmDialog, embedUrlFor };
+  window.PS = { escapeHtml, api, formatPrice, toast, openModal, confirmDialog, embedUrlFor, getUnlockToken, setUnlockToken };
 })();

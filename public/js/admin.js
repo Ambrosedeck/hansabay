@@ -32,6 +32,9 @@
 
   logoutBtn.addEventListener('click', async () => {
     await api('/api/admin/logout', { method: 'POST' });
+    if (window.PS && window.PS.setUnlockToken) {
+      window.PS.setUnlockToken('');
+    }
     location.reload();
   });
 

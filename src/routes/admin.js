@@ -42,8 +42,12 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  if (req.session) req.session.admin = false;
-  res.json({ ok: true });
+  if (req.session) {
+    req.session.admin = false;
+    req.session.unlocked = [];
+    req.session.unlocked_packs = {};
+  }
+  res.json({ ok: true, token: '' });
 });
 
 router.get('/me', (req, res) => {

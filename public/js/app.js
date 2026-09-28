@@ -1,6 +1,6 @@
 /* Public site: homepage with packs -> categories -> videos/links */
 (function () {
-  const { escapeHtml: esc, api, formatPrice, toast, openModal, embedUrlFor } = window.PS;
+  const { escapeHtml: esc, api, formatPrice, toast, openModal, embedUrlFor, setUnlockToken } = window.PS;
   const app = document.getElementById('app');
 
   // Simple hash router:  #/            -> packs
@@ -35,9 +35,13 @@
       el.innerHTML = packs.map(packCard).join('');
       el.querySelectorAll('[data-open]').forEach((btn) =>
         btn.addEventListener('click', () => {
-          const pack = packs.find((p) => p.id === Number(btn.dataset.open));
-          if (pack.unlocked) location.hash = `#/pack/${pack.id}`;
-          else promptUnlock(pack);
+          const packId = Number(btn.dataset.open);
+          const pack = packs.find((p) => p.id === packId);
+          if (pack && pack.unlocked) {
+            location.hash = `#/pack/${pack.id}`;
+          } else {
+            promptUnlock(pack || { id: packId, name: 'this pack' });
+          }
         })
       );
     } catch (err) {
@@ -64,7 +68,19 @@
       </article>`;
   }
 
-  function promptUnlock(pack, onSuccess) {
+  async function promptUnlock(pack, onSuccess) {
+    // If pack is already unlocked on the server / token, open directly without modal
+    try {
+      const check = await api(`/api/packs/${pack.id}`);
+      if (check && check.id) {
+        pack.unlocked = true;
+        if (onSuccess) onSuccess(); else location.hash = `#/pack/${pack.id}`;
+        return;
+      }
+    } catch {
+      // 403: locked, proceed to modal
+    }
+
     const { el, close } = openModal(`
       <h3>Unlock ${esc(pack.name)}</h3>
       <p class="modal-sub">Enter the password for this pack to see its content.</p>
@@ -84,7 +100,14 @@
       const errEl = el.querySelector('#unlock-err');
       errEl.textContent = '';
       try {
-        await api(`/api/packs/${pack.id}/unlock`, { method: 'POST', body: { password: el.querySelector('#unlock-pw').value } });
+        const res = await api(`/api/packs/${pack.id}/unlock`, {
+          method: 'POST',
+          body: { password: el.querySelector('#unlock-pw').value },
+        });
+        if (res && res.token) {
+          setUnlockToken(res.token);
+        }
+        pack.unlocked = true;
         close();
         toast(`${pack.name} unlocked`, 'success');
         if (onSuccess) onSuccess(); else location.hash = `#/pack/${pack.id}`;
@@ -101,8 +124,13 @@
     } catch (err) {
       if (err.status === 403) {
         // Locked: show the password prompt, then retry
-        const { packs } = await api('/api/packs');
-        const pack = packs.find((p) => p.id === packId) || { id: packId, name: 'this pack' };
+        let pack = null;
+        try {
+          const { packs } = await api('/api/packs');
+          pack = packs.find((p) => p.id === packId);
+        } catch { /* ignore */ }
+        pack = pack || { id: packId, name: 'this pack' };
+
         app.innerHTML = `
           <div class="breadcrumb"><a href="#/">Packs</a><span class="sep">/</span><span>${esc(pack.name)}</span></div>
           <div class="empty">🔒 This pack is locked.<br /><br /><button class="btn btn-primary" id="unlock-btn">Enter password</button></div>`;
@@ -133,7 +161,12 @@
         : '<div class="empty">No categories in this pack yet.</div>'}`;
 
     document.getElementById('lock-btn').addEventListener('click', async () => {
-      await api(`/api/packs/${pack.id}/lock`, { method: 'POST' });
+      const res = await api(`/api/packs/${pack.id}/lock`, { method: 'POST' });
+      if (res && res.token !== undefined) {
+        setUnlockToken(res.token);
+      }
+      pack.unlocked = false;
+      toast(`${pack.name} locked`, 'info');
       location.hash = '#/';
     });
   }

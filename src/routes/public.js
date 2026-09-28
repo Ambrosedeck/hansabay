@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyPassword } = require('../passwords');
-const { hasUnlocked, unlockPack, isAdmin } = require('../auth');
+const { hasUnlocked, unlockPack, lockPack, unlockedPackIds, isAdmin } = require('../auth');
 const q = require('../queries');
 
 const router = express.Router();
@@ -36,15 +36,14 @@ router.post('/packs/:id/unlock', (req, res) => {
   if (!verifyPassword(password, pack.password_hash)) {
     return res.status(401).json({ error: 'Incorrect password' });
   }
-  unlockPack(req, pack.id);
-  res.json({ ok: true });
+  const token = unlockPack(req, pack.id);
+  res.json({ ok: true, token, unlocked: unlockedPackIds(req), packId: pack.id });
 });
 
 // POST /api/packs/:id/lock -> forget the unlock for this session
 router.post('/packs/:id/lock', (req, res) => {
-  const id = Number(req.params.id);
-  req.session.unlocked = (req.session.unlocked || []).filter((x) => Number(x) !== id);
-  res.json({ ok: true });
+  const token = lockPack(req, req.params.id);
+  res.json({ ok: true, token, unlocked: unlockedPackIds(req) });
 });
 
 // GET /api/packs/:id -> full content, only when unlocked
